@@ -217,4 +217,53 @@ app.post("/customers", async (req, res) => {
     }
 });
 
+app.put("/customers/:id", async (req, res) => {
+    try {
+        const { name, phone, cpf, birthday } = req.body;
+        const { id } = req.params;
+        const schema = Joi.object({
+            name: Joi.string().required(),
+            phone: Joi.string()
+                .min(10)
+                .max(11)
+                .pattern(/^[0-9]+$/)
+                .required(),
+            cpf: Joi.string().length(11).required(),
+            birthday: Joi.string()
+                .pattern(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/)
+                .required(),
+        });
+
+        const validation = schema.validate({
+            name,
+            phone,
+            cpf,
+            birthday,
+        });
+
+        const cpfSearch = await connection.query(
+            "SELECT * FROM customers WHERE cpf = $1",
+            [cpf]
+        );
+
+        if (validation.error) {
+            res.status(400).send(validation.error.details[0].message);
+            return;
+        }
+        if (cpfSearch.rows[0]) {
+            res.sendStatus(409);
+            return;
+        }
+
+        await connection.query(
+            "UPDATE customers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5",
+            [name, phone, cpf, birthday, id]
+        );
+        res.sendStatus(200);
+    } catch (error) {
+        console.log(error);
+        res.status(500).send(error.message);
+    }
+});
+
 app.listen(4000);
