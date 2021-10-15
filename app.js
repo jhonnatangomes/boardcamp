@@ -25,7 +25,7 @@ app.get('/categories', async (req, res) => {
     try {
         const categories = await connection.query('SELECT * FROM categories');
         res.send(categories.rows);
-    } catch {
+    } catch (error) {
         console.log(error.message);
         res.sendStatus(500);
     }
@@ -52,7 +52,7 @@ app.post('/categories', async (req, res) => {
             );
             res.sendStatus(201);
         }
-    } catch {
+    } catch (error) {
         console.log(error.message);
         res.sendStatus(500);
     }
@@ -60,9 +60,18 @@ app.post('/categories', async (req, res) => {
 
 app.get('/games', async (req, res) => {
     try {
+        const { name } = req.query;
+        if (name) {
+            const games = await connection.query(
+                `SELECT * FROM games WHERE name ILIKE $1`,
+                [name + '%']
+            );
+            res.send(games.rows);
+            return;
+        }
         const games = await connection.query('SELECT * FROM games');
         res.send(games.rows);
-    } catch {
+    } catch (error) {
         console.log(error.message);
         res.sendStatus(500);
     }
@@ -113,7 +122,7 @@ app.post('/games', async (req, res) => {
         }
 
         await connection.query(
-            'INSERT INTO games (name, image, "stockTotal", "categoryId", "pricePerDayAA") VALUES ($1, $2, $3, $4, $5)',
+            'INSERT INTO games (name, image, "stockTotal", "categoryId", "pricePerDay") VALUES ($1, $2, $3, $4, $5)',
             [name, image, stockTotal, categoryId, pricePerDay]
         );
         res.sendStatus(201);
