@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import pg from "pg";
 import Joi from "joi";
+import dayjs from "dayjs";
 
 const { Pool } = pg;
 
@@ -15,10 +16,6 @@ const connection = new Pool({
     host: "localhost",
     port: 5432,
     database: "boardcamp",
-});
-
-app.get("/check-status", (req, res) => {
-    res.send("It works");
 });
 
 app.get("/categories", async (req, res) => {
@@ -63,13 +60,20 @@ app.get("/games", async (req, res) => {
         const { name } = req.query;
         if (name) {
             const games = await connection.query(
-                `SELECT * FROM games WHERE name ILIKE $1`,
+                `
+                SELECT games.*, categories.name AS "categoryName" 
+                FROM games JOIN categories ON games."categoryId" = categories.id
+                WHERE games.name ILIKE $1;
+                `,
                 [name + "%"]
             );
             res.send(games.rows);
             return;
         }
-        const games = await connection.query("SELECT * FROM games");
+        const games = await connection.query(`
+        SELECT games.*, categories.name AS "categoryName" 
+        FROM games JOIN categories ON games."categoryId" = categories.id;
+        `);
         res.send(games.rows);
     } catch (error) {
         console.log(error.message);
@@ -140,10 +144,22 @@ app.get("/customers", async (req, res) => {
                 "SELECT * FROM customers WHERE cpf ILIKE $1",
                 [cpf + "%"]
             );
+            customers.rows = customers.rows.map((customer) => {
+                return {
+                    ...customer,
+                    birthday: dayjs(customer.birthday).format("YYYY-MM-DD"),
+                };
+            });
             res.send(customers.rows);
             return;
         }
         const customers = await connection.query("SELECT * FROM customers");
+        customers.rows = customers.rows.map((customer) => {
+            return {
+                ...customer,
+                birthday: dayjs(customer.birthday).format("YYYY-MM-DD"),
+            };
+        });
         res.send(customers.rows);
     } catch (error) {
         console.log(error.message);
@@ -159,6 +175,10 @@ app.get("/customers/:id", async (req, res) => {
             [id]
         );
         if (customer.rows[0]) {
+            customer.rows[0] = {
+                ...customer.rows[0],
+                birthday: dayjs(customer.rows[0].birthday).format("YYYY-MM-DD"),
+            };
             res.send(customer.rows[0]);
         } else {
             res.sendStatus(404);
