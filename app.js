@@ -286,6 +286,68 @@ app.put("/customers/:id", async (req, res) => {
     }
 });
 
+app.get("/rentals", async (req, res) => {
+    try {
+        const queryText = `
+        SELECT rentals.*, customers.name as "customerName", 
+        games.name as "gameName", games."categoryId",
+        categories.name as "categoryName" 
+        FROM rentals JOIN customers
+        ON rentals."customerId" = customers.id
+        JOIN games
+        ON rentals."gameId" = games.id 
+        JOIN categories
+        ON games."categoryId" = categories.id
+        `;
+
+        const { customerId, gameId } = req.query;
+        let rentals;
+
+        if (customerId && !gameId) {
+            rentals = await connection.query(
+                queryText +
+                    `
+                WHERE customers.id = $1
+            `,
+                [customerId]
+            );
+        }
+        if (gameId && !customerId) {
+            rentals = await connection.query(
+                queryText +
+                    `
+                WHERE games.id = $1
+            `,
+                [gameId]
+            );
+        }
+        if (!gameId && !customerId) {
+            rentals = await connection.query(queryText);
+        }
+        rentals.rows.forEach((rental) => {
+            rental.rentDate = dayjs(rental.rentDate).format("YYYY-MM-DD");
+            rental.customer = {
+                id: rental.customerId,
+                name: rental.customerName,
+            };
+            rental.game = {
+                id: rental.gameId,
+                name: rental.gameName,
+                categoryId: rental.categoryId,
+                categoryName: rental.categoryName,
+            };
+            delete rental.customerName;
+            delete rental.gameName;
+            delete rental.categoryId;
+            delete rental.categoryName;
+        });
+        res.send(rentals.rows);
+    } catch (error) {
+        console.log(error);
+        res.status(500).send(error.message);
+    }
+});
+
 app.post("/rentals", async (req, res) => {
     try {
         const { customerId, gameId, daysRented } = req.body;
