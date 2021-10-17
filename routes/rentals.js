@@ -241,4 +241,51 @@ router.delete("/rentals/:id", async (req, res) => {
     }
 });
 
+router.get("/rentals/metrics", async (req, res) => {
+    const { startDate, endDate } = req.query;
+    let queryText = "";
+    const queryParams = [];
+    if (startDate) {
+        queryParams.push(startDate);
+        queryText += ` WHERE "rentDate" >= $${queryParams.length}`;
+    }
+    if (endDate) {
+        queryParams.push(endDate);
+        if (startDate) {
+            queryText += ` AND "rentDate" <= $${queryParams.length}`;
+        } else {
+            queryText += ` WHERE "rentDate" <= $${queryParams.length}`;
+        }
+    }
+    const originalPrice = await connection.query(
+        `
+        SELECT SUM ("originalPrice") FROM rentals
+    ` + queryText,
+        queryParams
+    );
+    const delayFee = await connection.query(
+        `
+        SELECT SUM ("delayFee") FROM rentals
+    ` + queryText,
+        queryParams
+    );
+
+    const revenue =
+        Number(originalPrice.rows[0].sum) + Number(delayFee.rows[0].sum);
+    const rentals = await connection.query(
+        `
+        SELECT COUNT(id) FROM rentals
+    ` + queryText,
+        queryParams
+    );
+
+    const average = revenue / rentals.rows[0].count;
+
+    res.send({
+        revenue: Number(revenue),
+        rentals: Number(rentals.rows[0].count),
+        average,
+    });
+});
+
 export default router;
