@@ -298,7 +298,8 @@ app.get("/rentals", async (req, res) => {
         ON games."categoryId" = categories.id
         `;
 
-        const { customerId, gameId, offset, limit } = req.query;
+        const { customerId, gameId, offset, limit, status, startDate } =
+            req.query;
         let rentals;
         const queryParams = [];
 
@@ -311,6 +312,30 @@ app.get("/rentals", async (req, res) => {
             if (!customerId)
                 queryText += ` WHERE games.id = $${queryParams.length}`;
             else queryText += ` AND games.id = $${queryParams.length}`;
+        }
+        if (status) {
+            if (status === "open") {
+                if (!customerId && !gameId) {
+                    queryText += ` WHERE rentals."returnDate" IS null`;
+                } else {
+                    queryText += ` AND rentals."returnDate" IS null`;
+                }
+            }
+            if (status === "closed") {
+                if (!customerId && !gameId) {
+                    queryText += ` WHERE rentals."returnDate" IS NOT null`;
+                } else {
+                    queryText += ` AND rentals."returnDate" IS NOT null`;
+                }
+            }
+        }
+        if (startDate) {
+            queryParams.push(startDate);
+            if (!customerId && !gameId && !status) {
+                queryText += ` WHERE rentals."rentDate" >= $${queryParams.length}`;
+            } else {
+                queryText += ` AND rentals."rentDate" >= $${queryParams.length}`;
+            }
         }
 
         queryText = querySearch(offset, limit, queryText, queryParams);
