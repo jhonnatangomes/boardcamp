@@ -3,6 +3,7 @@ import cors from "cors";
 import pg from "pg";
 import Joi from "joi";
 import dayjs from "dayjs";
+import querySearch from "./querySearch.js";
 
 const { Pool } = pg;
 const app = express();
@@ -19,7 +20,13 @@ const connection = new Pool({
 
 app.get("/categories", async (req, res) => {
     try {
-        const categories = await connection.query("SELECT * FROM categories");
+        const { offset, limit } = req.query;
+        let queryText = "SELECT * FROM categories";
+        let categories;
+        const queryParams = [];
+
+        queryText = querySearch(offset, limit, queryText, queryParams);
+        categories = await connection.query(queryText, queryParams);
         res.send(categories.rows);
     } catch (error) {
         console.log(error.message);
@@ -56,20 +63,20 @@ app.post("/categories", async (req, res) => {
 
 app.get("/games", async (req, res) => {
     try {
-        const { name } = req.query;
-        const queryText = `
+        const { name, offset, limit } = req.query;
+        let queryText = `
             SELECT games.*, categories.name AS "categoryName" 
             FROM games JOIN categories ON games."categoryId" = categories.id
         `;
         let games;
+        const queryParams = [];
         if (name) {
-            games = await connection.query(
-                queryText + `WHERE games.name ILIKE $1`,
-                [name + "%"]
-            );
-        } else {
-            games = await connection.query(queryText);
+            queryParams.push(name + "%");
+            queryText += ` WHERE games.name ILIKE $${queryParams.length}`;
         }
+
+        queryText = querySearch(offset, limit, queryText, queryParams);
+        games = await connection.query(queryText, queryParams);
         res.send(games.rows);
     } catch (error) {
         console.log(error.message);
@@ -134,17 +141,17 @@ app.post("/games", async (req, res) => {
 
 app.get("/customers", async (req, res) => {
     try {
-        const { cpf } = req.query;
-        const querySearch = "SELECT * FROM customers";
+        const { cpf, offset, limit } = req.query;
+        let queryText = "SELECT * FROM customers";
         let customers;
+        const queryParams = [];
         if (cpf) {
-            customers = await connection.query(
-                querySearch + "WHERE cpf ILIKE $1",
-                [cpf + "%"]
-            );
-        } else {
-            customers = await connection.query("SELECT * FROM customers");
+            queryParams.push(cpf + "%");
+            queryText += ` WHERE cpf ILIKE $${queryParams.length}`;
         }
+
+        queryText = querySearch(offset, limit, queryText, queryParams);
+        customers = await connection.query(queryText, queryParams);
         customers.rows = customers.rows.map((customer) => {
             return {
                 ...customer,
@@ -279,7 +286,7 @@ app.put("/customers/:id", async (req, res) => {
 
 app.get("/rentals", async (req, res) => {
     try {
-        const queryText = `
+        let queryText = `
         SELECT rentals.*, customers.name as "customerName", 
         games.name as "gameName", games."categoryId",
         categories.name as "categoryName" 
@@ -291,30 +298,23 @@ app.get("/rentals", async (req, res) => {
         ON games."categoryId" = categories.id
         `;
 
-        const { customerId, gameId } = req.query;
+        const { customerId, gameId, offset, limit } = req.query;
         let rentals;
+        const queryParams = [];
 
-        if (customerId && !gameId) {
-            rentals = await connection.query(
-                queryText +
-                    `
-                WHERE customers.id = $1
-            `,
-                [customerId]
-            );
+        if (customerId) {
+            queryParams.push(customerId);
+            queryText += ` WHERE customers.id = $${queryParams.length}`;
         }
-        if (gameId && !customerId) {
-            rentals = await connection.query(
-                queryText +
-                    `
-                WHERE games.id = $1
-            `,
-                [gameId]
-            );
+        if (gameId) {
+            queryParams.push(gameId);
+            if (!customerId)
+                queryText += ` WHERE games.id = $${queryParams.length}`;
+            else queryText += ` AND games.id = $${queryParams.length}`;
         }
-        if (!gameId && !customerId) {
-            rentals = await connection.query(queryText);
-        }
+
+        queryText = querySearch(offset, limit, queryText, queryParams);
+        rentals = await connection.query(queryText, queryParams);
         rentals.rows.forEach((rental) => {
             rental.rentDate = dayjs(rental.rentDate).format("YYYY-MM-DD");
             rental.returnDate = rental.returnDate
