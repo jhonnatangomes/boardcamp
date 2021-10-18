@@ -5,12 +5,13 @@ const router = express.Router();
 
 router.get("/categories", async (req, res) => {
     try {
-        const { offset, limit } = req.query;
+        const { offset, limit, order } = req.query;
         let queryText = "SELECT * FROM categories";
         let categories;
         const queryParams = [];
 
-        queryText = querySearch(offset, limit, queryText, queryParams);
+        queryText = querySearch(offset, limit, queryText, queryParams, order);
+        console.log(queryText);
         categories = await connection.query(queryText, queryParams);
         res.send(categories.rows);
     } catch (error) {

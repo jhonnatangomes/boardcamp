@@ -30,9 +30,11 @@ router.get("/rentals", async (req, res) => {
         }
         if (gameId) {
             queryParams.push(gameId);
-            if (!customerId)
+            if (!customerId) {
                 queryText += ` WHERE games.id = $${queryParams.length}`;
-            else queryText += ` AND games.id = $${queryParams.length}`;
+            } else {
+                queryText += ` AND games.id = $${queryParams.length}`;
+            }
         }
         if (status) {
             if (status === "open") {

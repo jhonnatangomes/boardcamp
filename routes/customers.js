@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get("/customers", async (req, res) => {
     try {
-        const { cpf, offset, limit } = req.query;
+        const { cpf, offset, limit, order } = req.query;
         let queryText = `
             SELECT customers.*, COUNT(rentals.id) AS "rentalsCount" 
             FROM customers LEFT JOIN rentals ON customers.id = rentals."customerId"`;
@@ -19,7 +19,7 @@ router.get("/customers", async (req, res) => {
         }
 
         queryText += ` GROUP BY customers.id ORDER BY customers.id`;
-        queryText = querySearch(offset, limit, queryText, queryParams);
+        queryText = querySearch(offset, limit, queryText, queryParams, order);
         customers = await connection.query(queryText, queryParams);
         customers.rows.forEach((customer) => {
             customer.birthday = dayjs(customer.birthday).format("YYYY-MM-DD");

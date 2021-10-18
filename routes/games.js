@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get("/games", async (req, res) => {
     try {
-        const { name, offset, limit } = req.query;
+        const { name, offset, limit, order } = req.query;
         let queryText = `
             SELECT games.*, categories.name AS "categoryName", 
             COUNT(rentals."rentDate") AS "rentalsCount"
@@ -21,7 +21,7 @@ router.get("/games", async (req, res) => {
         }
 
         queryText += ` GROUP BY games.id, categories.name ORDER BY games.id`;
-        queryText = querySearch(offset, limit, queryText, queryParams);
+        queryText = querySearch(offset, limit, queryText, queryParams, order);
         games = await connection.query(queryText, queryParams);
         games.rows.forEach(
             (game) => (game.rentalsCount = Number(game.rentalsCount))
