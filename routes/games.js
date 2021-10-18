@@ -8,8 +8,11 @@ router.get("/games", async (req, res) => {
     try {
         const { name, offset, limit } = req.query;
         let queryText = `
-            SELECT games.*, categories.name AS "categoryName" 
+            SELECT games.*, categories.name AS "categoryName", 
+            COUNT(rentals.id) AS "rentalsCount"
             FROM games JOIN categories ON games."categoryId" = categories.id
+            JOIN rentals ON games.id = rentals."gameId"
+            GROUP BY games.id, categories.name
         `;
         let games;
         const queryParams = [];
@@ -20,6 +23,9 @@ router.get("/games", async (req, res) => {
 
         queryText = querySearch(offset, limit, queryText, queryParams);
         games = await connection.query(queryText, queryParams);
+        games.rows.forEach(
+            (game) => (game.rentalsCount = Number(game.rentalsCount))
+        );
         res.send(games.rows);
     } catch (error) {
         console.log(error.message);

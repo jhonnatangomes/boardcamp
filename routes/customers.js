@@ -8,7 +8,9 @@ const router = express.Router();
 router.get("/customers", async (req, res) => {
     try {
         const { cpf, offset, limit } = req.query;
-        let queryText = "SELECT * FROM customers";
+        let queryText = `
+            SELECT customers.*, COUNT(rentals.id) AS "rentalsCount" 
+            FROM customers JOIN rentals ON customers.id = rentals."customerId"`;
         let customers;
         const queryParams = [];
         if (cpf) {
@@ -16,13 +18,12 @@ router.get("/customers", async (req, res) => {
             queryText += ` WHERE cpf ILIKE $${queryParams.length}`;
         }
 
+        queryText += ` GROUP BY customers.id`;
         queryText = querySearch(offset, limit, queryText, queryParams);
         customers = await connection.query(queryText, queryParams);
-        customers.rows = customers.rows.map((customer) => {
-            return {
-                ...customer,
-                birthday: dayjs(customer.birthday).format("YYYY-MM-DD"),
-            };
+        customers.rows.forEach((customer) => {
+            customer.birthday = dayjs(customer.birthday).format("YYYY-MM-DD");
+            customer.rentalsCount = Number(customer.rentalsCount);
         });
         res.send(customers.rows);
     } catch (error) {
