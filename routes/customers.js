@@ -10,7 +10,7 @@ router.get("/customers", async (req, res) => {
         const { cpf, offset, limit } = req.query;
         let queryText = `
             SELECT customers.*, COUNT(rentals.id) AS "rentalsCount" 
-            FROM customers JOIN rentals ON customers.id = rentals."customerId"`;
+            FROM customers LEFT JOIN rentals ON customers.id = rentals."customerId"`;
         let customers;
         const queryParams = [];
         if (cpf) {
@@ -18,7 +18,7 @@ router.get("/customers", async (req, res) => {
             queryText += ` WHERE cpf ILIKE $${queryParams.length}`;
         }
 
-        queryText += ` GROUP BY customers.id`;
+        queryText += ` GROUP BY customers.id ORDER BY customers.id`;
         queryText = querySearch(offset, limit, queryText, queryParams);
         customers = await connection.query(queryText, queryParams);
         customers.rows.forEach((customer) => {

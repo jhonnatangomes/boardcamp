@@ -9,10 +9,9 @@ router.get("/games", async (req, res) => {
         const { name, offset, limit } = req.query;
         let queryText = `
             SELECT games.*, categories.name AS "categoryName", 
-            COUNT(rentals.id) AS "rentalsCount"
+            COUNT(rentals."rentDate") AS "rentalsCount"
             FROM games JOIN categories ON games."categoryId" = categories.id
-            JOIN rentals ON games.id = rentals."gameId"
-            GROUP BY games.id, categories.name
+            LEFT JOIN rentals ON games.id = rentals."gameId"
         `;
         let games;
         const queryParams = [];
@@ -21,6 +20,7 @@ router.get("/games", async (req, res) => {
             queryText += ` WHERE games.name ILIKE $${queryParams.length}`;
         }
 
+        queryText += ` GROUP BY games.id, categories.name ORDER BY games.id`;
         queryText = querySearch(offset, limit, queryText, queryParams);
         games = await connection.query(queryText, queryParams);
         games.rows.forEach(
